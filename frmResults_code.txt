@@ -1,0 +1,79 @@
+'==============================================================================
+' Form    : frmResults (v2: adds "Save emails to folder")
+' SETUP   : open the form's code window (select the form, press F7),
+'           select everything, delete, and paste ALL of this.
+'==============================================================================
+Option Explicit
+
+Private WithEvents lstResults As MSForms.ListBox
+Private WithEvents btnExport  As MSForms.CommandButton
+Private WithEvents btnSave    As MSForms.CommandButton
+Private WithEvents btnClose   As MSForms.CommandButton
+Private lblCount              As MSForms.Label
+
+Private Sub UserForm_Initialize()
+    BuildUI
+End Sub
+
+Private Function AddCtl(ByVal progId As String, ByVal nm As String, _
+                        ByVal l As Single, ByVal t As Single, _
+                        ByVal w As Single, ByVal h As Single) As Object
+    Dim c As Object
+    Set c = Me.Controls.Add(progId, nm, True)
+    c.Left = l: c.Top = t: c.Width = w: c.Height = h
+    Set AddCtl = c
+End Function
+
+Private Sub AddHeader(ByVal caption As String, ByVal l As Single, ByVal w As Single, _
+                      ByVal nm As String)
+    Dim c As Object
+    Set c = AddCtl("Forms.Label.1", nm, l, 8, w, 14)
+    c.Caption = " " & caption
+    c.BackColor = &HD9D9D9
+    c.Font.Bold = True
+End Sub
+
+Private Sub BuildUI()
+    Me.Caption = "Category Search - Results"
+    Me.Width = 712
+    Me.Height = 500
+    AddHeader "Subject", 10, 230, "hdrSubject"
+    AddHeader "Sender", 240, 105, "hdrSender"
+    AddHeader "Received", 345, 80, "hdrReceived"
+    AddHeader "Categories", 425, 150, "hdrCategories"
+    AddHeader "Folder", 575, 90, "hdrFolder"
+    Set lstResults = AddCtl("Forms.ListBox.1", "lstResults", 8, 24, 684, 400)
+    Set btnSave = AddCtl("Forms.CommandButton.1", "btnSave", 8, 436, 170, 26)
+    btnSave.Caption = "Save emails to folder..."
+    Set btnExport = AddCtl("Forms.CommandButton.1", "btnExport", 186, 436, 110, 26)
+    btnExport.Caption = "Export list to Excel"
+    Set btnClose = AddCtl("Forms.CommandButton.1", "btnClose", 304, 436, 70, 26)
+    btnClose.Caption = "Close"
+    Set lblCount = AddCtl("Forms.Label.1", "lblCount", 386, 442, 306, 14)
+End Sub
+
+Public Sub LoadResults()
+    With lstResults
+        .Clear
+        .ColumnCount = RC_COUNT
+        .ColumnWidths = "230 pt;105 pt;80 pt;150 pt;90 pt;0 pt;0 pt"
+        .List = g_Results
+    End With
+    lblCount.Caption = g_ResultCount & " email(s) - double-click to open"
+End Sub
+
+Private Sub lstResults_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
+    If lstResults.ListIndex >= 0 Then OpenResult lstResults.ListIndex
+End Sub
+
+Private Sub btnSave_Click()
+    SaveResultsToFolder
+End Sub
+
+Private Sub btnExport_Click()
+    ExportResultsToExcel
+End Sub
+
+Private Sub btnClose_Click()
+    Unload Me
+End Sub

@@ -1,0 +1,217 @@
+'==============================================================================
+' Form    : frmCategorySearch  (SIMPLIFIED v2)
+' SETUP   : open the form's code window (select the form, press F7),
+'           select everything, delete, and paste ALL of this.
+'==============================================================================
+Option Explicit
+
+Private lstCategories As MSForms.ListBox
+Private optAnd        As MSForms.OptionButton
+Private optOr         As MSForms.OptionButton
+Private cboScope      As MSForms.ComboBox
+Private chkAttach     As MSForms.CheckBox
+Private txtSender     As MSForms.TextBox
+Private txtKeyword    As MSForms.TextBox
+Private txtFrom       As MSForms.TextBox
+Private txtTo         As MSForms.TextBox
+Private lblStatus     As MSForms.Label
+Private WithEvents btnSearch As MSForms.CommandButton
+Private WithEvents btnClear  As MSForms.CommandButton
+Private WithEvents btnClose  As MSForms.CommandButton
+
+Private Sub UserForm_Initialize()
+    BuildUI
+    Set g_Status = lblStatus
+    LoadCategories
+    ResetOptions
+End Sub
+
+Private Sub UserForm_Terminate()
+    Set g_Status = Nothing
+End Sub
+
+Private Function AddCtl(ByVal progId As String, ByVal nm As String, _
+                        ByVal l As Single, ByVal t As Single, _
+                        ByVal w As Single, ByVal h As Single) As Object
+    Dim c As Object
+    Set c = Me.Controls.Add(progId, nm, True)
+    c.Left = l: c.Top = t: c.Width = w: c.Height = h
+    Set AddCtl = c
+End Function
+
+Private Sub AddLabel(ByVal caption As String, ByVal l As Single, ByVal t As Single, _
+                     ByVal w As Single, ByVal h As Single, ByVal nm As String, _
+                     Optional ByVal bold As Boolean = False)
+    Dim c As Object
+    Set c = AddCtl("Forms.Label.1", nm, l, t, w, h)
+    c.Caption = caption
+    c.Font.Bold = bold
+End Sub
+
+Private Sub BuildUI()
+    Me.Caption = "Category Search"
+    Me.Width = 462
+    Me.Height = 400
+    AddLabel "1. Pick categories (click to toggle)", 12, 8, 200, 14, "lblCat", True
+    Set lstCategories = AddCtl("Forms.ListBox.1", "lstCategories", 12, 24, 200, 250)
+    lstCategories.MultiSelect = 1
+    AddLabel "2. How to match", 228, 8, 212, 14, "lblMatch", True
+    Set optAnd = AddCtl("Forms.OptionButton.1", "optAnd", 228, 24, 212, 16)
+    optAnd.Caption = "ALL selected (email has every one)"
+    Set optOr = AddCtl("Forms.OptionButton.1", "optOr", 228, 42, 212, 16)
+    optOr.Caption = "ANY selected (at least one)"
+    AddLabel "3. Where to search", 228, 66, 212, 14, "lblScope", True
+    Set cboScope = AddCtl("Forms.ComboBox.1", "cboScope", 228, 82, 212, 20)
+    cboScope.Style = 2
+    cboScope.AddItem "Inbox only"
+    cboScope.AddItem "Inbox + its subfolders"
+    cboScope.AddItem "Whole mailbox (all folders)"
+    cboScope.AddItem "Whole mailbox + shared mailboxes"
+    AddLabel "Optional - leave blank to ignore:", 228, 112, 212, 14, "lblOpt", True
+    Set chkAttach = AddCtl("Forms.CheckBox.1", "chkAttach", 228, 128, 212, 16)
+    chkAttach.Caption = "Only emails with attachments"
+    AddLabel "Sender contains:", 228, 150, 212, 14, "lblSender"
+    Set txtSender = AddCtl("Forms.TextBox.1", "txtSender", 228, 164, 212, 18)
+    AddLabel "Subject contains:", 228, 186, 212, 14, "lblSubj"
+    Set txtKeyword = AddCtl("Forms.TextBox.1", "txtKeyword", 228, 200, 212, 18)
+    AddLabel "Received between (yyyy-mm-dd):", 228, 222, 212, 14, "lblDate"
+    Set txtFrom = AddCtl("Forms.TextBox.1", "txtFrom", 228, 236, 100, 18)
+    Set txtTo = AddCtl("Forms.TextBox.1", "txtTo", 340, 236, 100, 18)
+    Set btnSearch = AddCtl("Forms.CommandButton.1", "btnSearch", 12, 288, 100, 26)
+    btnSearch.Caption = "Search"
+    btnSearch.Default = True
+    Set btnClear = AddCtl("Forms.CommandButton.1", "btnClear", 120, 288, 100, 26)
+    btnClear.Caption = "Clear"
+    Set btnClose = AddCtl("Forms.CommandButton.1", "btnClose", 340, 288, 100, 26)
+    btnClose.Caption = "Close"
+    Set lblStatus = AddCtl("Forms.Label.1", "lblStatus", 12, 324, 428, 40)
+    lblStatus.Caption = "Pick categories, then click Search."
+End Sub
+
+Private Sub ResetOptions()
+    Dim i As Long
+    For i = 0 To lstCategories.ListCount - 1
+        lstCategories.Selected(i) = False
+    Next i
+    optAnd.Value = True
+    cboScope.ListIndex = 2
+    chkAttach.Value = False
+    txtSender.Text = "": txtKeyword.Text = "": txtFrom.Text = "": txtTo.Text = ""
+End Sub
+
+Private Sub LoadCategories()
+    Dim cat As Outlook.Category
+    Dim names() As String
+    Dim n As Long, i As Long, j As Long, tmp As String
+    On Error GoTo EH
+    n = Application.Session.Categories.Count
+    lstCategories.Clear
+    If n = 0 Then Exit Sub
+    ReDim names(0 To n - 1)
+    For Each cat In Application.Session.Categories
+        names(i) = cat.Name: i = i + 1
+    Next cat
+    For i = 1 To n - 1
+        tmp = names(i): j = i - 1
+        Do While j >= 0
+            If StrComp(names(j), tmp, vbTextCompare) <= 0 Then Exit Do
+            names(j + 1) = names(j): j = j - 1
+        Loop
+        names(j + 1) = tmp
+    Next i
+    For i = 0 To n - 1
+        lstCategories.AddItem names(i)
+    Next i
+    Exit Sub
+EH:
+    MsgBox "Could not load categories: " & Err.Description, vbExclamation
+End Sub
+
+Private Function ReadOptions(ByRef opt As SearchOptions) As Boolean
+    Dim i As Long, k As Long
+    Dim sel() As String
+    For i = 0 To lstCategories.ListCount - 1
+        If lstCategories.Selected(i) Then k = k + 1
+    Next i
+    If k > 0 Then
+        ReDim sel(0 To k - 1)
+        k = 0
+        For i = 0 To lstCategories.ListCount - 1
+            If lstCategories.Selected(i) Then sel(k) = lstCategories.List(i): k = k + 1
+        Next i
+        opt.Cats = sel
+    End If
+    opt.CatCount = k
+    opt.MatchAll = optAnd.Value
+    Select Case cboScope.ListIndex
+        Case 0: opt.EntireMailbox = False: opt.IncludeSubfolders = False: opt.IncludeShared = False
+        Case 1: opt.EntireMailbox = False: opt.IncludeSubfolders = True:  opt.IncludeShared = False
+        Case 2: opt.EntireMailbox = True:  opt.IncludeSubfolders = True:  opt.IncludeShared = False
+        Case Else: opt.EntireMailbox = True: opt.IncludeSubfolders = True: opt.IncludeShared = True
+    End Select
+    opt.OnlyAttachments = chkAttach.Value
+    opt.Sender = Trim$(txtSender.Text)
+    opt.Keyword = Trim$(txtKeyword.Text)
+    opt.SearchBody = False
+    If Len(Trim$(txtFrom.Text)) > 0 Or Len(Trim$(txtTo.Text)) > 0 Then
+        opt.UseDate = True
+        opt.DateFrom = DateSerial(1900, 1, 1)
+        opt.DateTo = DateSerial(2999, 12, 31)
+        If Len(Trim$(txtFrom.Text)) > 0 Then
+            If Not IsDate(txtFrom.Text) Then
+                MsgBox "Enter the 'from' date as yyyy-mm-dd.", vbExclamation, "Category Search"
+                Exit Function
+            End If
+            opt.DateFrom = CDate(txtFrom.Text)
+        End If
+        If Len(Trim$(txtTo.Text)) > 0 Then
+            If Not IsDate(txtTo.Text) Then
+                MsgBox "Enter the 'to' date as yyyy-mm-dd.", vbExclamation, "Category Search"
+                Exit Function
+            End If
+            opt.DateTo = CDate(txtTo.Text)
+        End If
+        If opt.DateFrom > opt.DateTo Then
+            MsgBox "'from' date is after 'to' date.", vbExclamation, "Category Search"
+            Exit Function
+        End If
+    End If
+    If opt.CatCount = 0 And Len(opt.Sender) = 0 And Len(opt.Keyword) = 0 _
+       And Not opt.OnlyAttachments And Not opt.UseDate Then
+        MsgBox "Pick at least one category (or fill an optional filter).", vbInformation, "Category Search"
+        Exit Function
+    End If
+    ReadOptions = True
+End Function
+
+Private Sub btnSearch_Click()
+    Dim opt As SearchOptions
+    Dim n As Long
+    On Error GoTo EH
+    If Not ReadOptions(opt) Then Exit Sub
+    btnSearch.Enabled = False
+    Me.MousePointer = fmMousePointerHourGlass
+    n = ExecuteSearch(opt)
+    Me.MousePointer = fmMousePointerDefault
+    btnSearch.Enabled = True
+    If n = 0 Then
+        MsgBox "No matching emails found.", vbInformation, "Category Search"
+    Else
+        frmResults.LoadResults
+        frmResults.Show vbModeless
+    End If
+    Exit Sub
+EH:
+    Me.MousePointer = fmMousePointerDefault
+    btnSearch.Enabled = True
+    MsgBox "Error: " & Err.Description, vbExclamation, "Category Search"
+End Sub
+
+Private Sub btnClear_Click()
+    ResetOptions
+    lblStatus.Caption = "Cleared."
+End Sub
+
+Private Sub btnClose_Click()
+    Unload Me
+End Sub
