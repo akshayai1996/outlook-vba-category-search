@@ -45,7 +45,7 @@ No external software. No data leaves your PC. Works entirely inside Outlook.
 ## 📁 File Structure
 
 ```
-outlook-vba-category-search/
+Email_Categorizer_outlookvba/
 ├── modCategorySearch.bas       # Core search engine (import as a Module)
 ├── frmCategorySearch_code.txt  # UI form code — paste into frmCategorySearch
 ├── frmResults_code.txt         # Results form code — paste into frmResults
@@ -113,16 +113,6 @@ Click the toolbar button (or run `ShowCategorySearch` from the VBE) to open the 
 - **100% local** — no data is sent to any server or external service
 - Runs entirely within Outlook VBA sandbox
 - No third-party libraries or COM add-ins required
-
----
-
-## 🤝 Contributing
-
-Pull requests welcome! Ideas for improvement:
-- [ ] Export results as CSV
-- [ ] Remember last-used category selections
-- [ ] Support Outlook on Mac (currently Windows / Classic Outlook only)
-- [ ] Add a "Select All / Clear All" categories button
 
 ---
 
